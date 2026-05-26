@@ -1,0 +1,22 @@
+{
+  "name": "simulacion-clinica-web",
+  "version": "1.0.0",
+  "description": "Página web interactiva del proyecto de simulación estocástica de atención de pacientes en una clínica (USB Medellín).",
+  "private": true,
+  "scripts": {
+    "start": "live-server --port=3000 --no-browser=false --entry-file=index.html",
+    "dev": "live-server --port=3000 --no-browser=false --entry-file=index.html"
+  },
+  "keywords": [
+    "simulacion",
+    "eventos-discretos",
+    "M/M/c",
+    "clinica",
+    "USB-Medellin"
+  ],
+  "author": "Juan Sebastián Brunal, Juan Sebastián Calvo, Simón Valencia",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

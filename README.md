@@ -21,9 +21,19 @@ sala de espera de capacidad finita, directamente en el navegador.
 
 ## Cómo abrirlo
 
-Solo abre el archivo `index.html` en cualquier navegador moderno (Chrome,
-Firefox, Edge, Safari). No requiere instalación; los gráficos se cargan
-mediante [Chart.js](https://www.chartjs.org/) desde un CDN.
+Requiere [Node.js](https://nodejs.org/) 18 o superior.
+
+```bash
+npm install        # instala las dependencias (live-server)
+npm run dev        # levanta el servidor en http://localhost:3000
+```
+
+El comando `npm run dev` (o `npm start`) abre la página automáticamente
+en tu navegador y recarga al guardar cambios.
+
+Alternativamente, también puedes abrir `index.html` con doble clic, sin
+instalar nada — los gráficos se cargan mediante
+[Chart.js](https://www.chartjs.org/) desde un CDN.
 
 ## Detalles técnicos
 
@@ -45,7 +55,9 @@ error inferior al 2,3 %.
 
 ```
 .
-├── index.html      # Página completa (HTML + CSS + JS)
+├── index.html       # Página completa (HTML + CSS + JS)
+├── package.json     # Scripts y dependencias de desarrollo
+├── .gitignore
 └── README.md
 ```
 
