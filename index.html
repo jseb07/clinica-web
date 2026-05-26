@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulación Clínica · USB Medellín</title>
+<meta name="description" content="Simulación estocástica de eventos discretos de una clínica con prioridad y sala finita. Modelo M/M/c interactivo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --primary:#e66600;
+    --primary-dark:#b35200;
+    --primary-soft:#fff1e0;
+    --accent:#1b6b1b;
+    --accent-soft:#e8f3e0;
+    --blue:#0a4a66;
+    --bg:#fafafa;
+    --surface:#ffffff;
+    --text:#1f2937;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --warn:#cc3300;
+    --shadow:0 1px 2px rgba(0,0,0,.05), 0 4px 12px rgba(0,0,0,.04);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:64px}
+  body{
+    margin:0;
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---------- HERO ---------- */
+  .hero{
+    background:
+      radial-gradient(1200px 400px at 80% -100px, #ff8a3d33, transparent),
+      linear-gradient(180deg,#fff7ee 0%, #fafafa 100%);
+    padding:88px 24px 64px;
+    border-bottom:1px solid var(--border);
+  }
+  .hero-inner{max-width:1100px;margin:0 auto}
+  .brand{
+    display:inline-flex;align-items:center;gap:8px;
+    color:var(--primary-dark);font-weight:600;font-size:.85rem;
+    letter-spacing:.04em;text-transform:uppercase;
+    background:var(--primary-soft);
+    border:1px solid #ffd9b3;
+    padding:6px 12px;border-radius:999px;
+  }
+  .brand::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--primary)}
+  h1{
+    font-size:clamp(1.8rem,3.6vw,2.7rem);
+    font-weight:800;letter-spacing:-.02em;
+    margin:18px 0 12px;line-height:1.15;
+    color:#111827;
+  }
+  h1 .accent{color:var(--primary)}
+  .lead{font-size:1.1rem;color:var(--muted);max-width:720px;margin:0 0 18px}
+  .authors{color:#374151;margin:8px 0 26px;font-size:.95rem}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--primary);color:#fff;text-decoration:none;
+    padding:12px 22px;border-radius:10px;font-weight:600;
+    box-shadow:0 6px 18px rgba(230,102,0,.25);
+    transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);background:var(--primary-dark);box-shadow:0 8px 22px rgba(179,82,0,.3)}
+  .btn.secondary{
+    background:#fff;color:var(--primary-dark);
+    border:1px solid #ffd9b3;box-shadow:none;
+  }
+  .btn.secondary:hover{background:var(--primary-soft)}
+
+  /* ---------- NAV ---------- */
+  nav.topnav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(180%) blur(8px);
+    -webkit-backdrop-filter:saturate(180%) blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  nav.topnav .inner{
+    max-width:1100px;margin:0 auto;
+    display:flex;gap:6px;flex-wrap:wrap;padding:10px 24px;
+  }
+  nav.topnav a{
+    text-decoration:none;color:#374151;font-size:.92rem;
+    padding:8px 14px;border-radius:8px;font-weight:500;
+    transition:background .15s, color .15s;
+  }
+  nav.topnav a:hover{background:var(--primary-soft);color:var(--primary-dark)}
+
+  /* ---------- MAIN ---------- */
+  main{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+  section{margin:56px 0;scroll-margin-top:72px}
+  section > .section-head{margin-bottom:18px}
+  .eyebrow{
+    font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--primary);font-weight:700;
+  }
+  h2{
+    font-size:clamp(1.4rem,2.4vw,1.9rem);
+    margin:6px 0 8px;letter-spacing:-.01em;color:#111827;
+  }
+  h3{font-size:1.05rem;margin:18px 0 8px;color:#111827}
+  p{margin:.4em 0 .8em}
+  .muted{color:var(--muted)}
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:14px;padding:22px;box-shadow:var(--shadow);
+  }
+  .card + .card{margin-top:18px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media (max-width:820px){
+    .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+  }
+
+  /* ---------- CONCEPT CARDS ---------- */
+  .concept{
+    padding:18px;border-radius:12px;
+    background:var(--primary-soft);border:1px solid #ffd9b3;
+  }
+  .concept h3{margin-top:0;color:var(--primary-dark)}
+  .concept.green{background:var(--accent-soft);border-color:#bcd9aa}
+  .concept.green h3{color:var(--accent)}
+  .concept.blue{background:#e7f0f5;border-color:#b6cdd7}
+  .concept.blue h3{color:var(--blue)}
+
+  /* ---------- MODEL DIAGRAM ---------- */
+  .diagram{
+    display:flex;align-items:center;justify-content:center;gap:14px;
+    flex-wrap:wrap;padding:22px 8px;background:#fff;
+    border:1px dashed #ffcc99;border-radius:12px;margin:8px 0 18px;
+  }
+  .node{
+    padding:14px 18px;border-radius:10px;font-weight:600;font-size:.95rem;
+    text-align:center;min-width:120px;
+  }
+  .node.in{background:var(--primary-soft);border:1px solid #ffd0a0;color:var(--primary-dark)}
+  .node.queue{background:#fff;border:1px solid var(--primary);color:var(--primary-dark)}
+  .node.server{
+    background:var(--accent-soft);border:1px solid #bcd9aa;color:var(--accent);
+    border-radius:50%;width:70px;height:70px;min-width:0;
+    display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  }
+  .servers-col{display:flex;flex-direction:column;gap:8px}
+  .arrow{color:var(--primary);font-size:1.6rem;font-weight:700}
+  .node.out{background:#e7f0f5;border:1px solid #b6cdd7;color:var(--blue)}
+
+  /* ---------- PARAMS / CONTROLS ---------- */
+  .controls label{display:block;font-size:.88rem;color:#374151;margin:14px 0 6px;font-weight:600}
+  .controls .row{display:flex;align-items:center;gap:12px}
+  .controls input[type=range]{flex:1;accent-color:var(--primary)}
+  .controls .val{
+    min-width:64px;text-align:right;font-variant-numeric:tabular-nums;
+    font-weight:600;color:var(--primary-dark);
+  }
+  .controls .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .badge{
+    display:inline-block;font-size:.78rem;color:#fff;background:var(--primary);
+    padding:2px 8px;border-radius:999px;font-weight:600;
+  }
+  .badge.green{background:var(--accent)}
+  .badge.blue{background:var(--blue)}
+  .formula{
+    background:#fafafa;border-left:3px solid var(--primary);
+    padding:8px 14px;font-family:'Inter',sans-serif;font-style:italic;
+    border-radius:0 8px 8px 0;color:#374151;margin:8px 0;
+  }
+  .formula b{font-style:normal;font-weight:700;color:var(--primary-dark)}
+
+  /* ---------- KPI ---------- */
+  .kpi{
+    background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:4px;min-height:96px;justify-content:center;
+  }
+  .kpi .lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  .kpi .num{font-size:1.6rem;font-weight:800;color:#111827;line-height:1.1;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:.82rem;color:var(--muted)}
+  .kpi.primary{background:var(--primary-soft);border-color:#ffd9b3}
+  .kpi.primary .num{color:var(--primary-dark)}
+  .kpi.green{background:var(--accent-soft);border-color:#bcd9aa}
+  .kpi.green .num{color:var(--accent)}
+  .kpi.blue{background:#e7f0f5;border-color:#b6cdd7}
+  .kpi.blue .num{color:var(--blue)}
+
+  /* ---------- CHARTS ---------- */
+  .chart-wrap{position:relative;height:280px}
+  .chart-wrap.lg{height:340px}
+
+  /* ---------- TABLE ---------- */
+  .table-wrap{
+    max-height:480px;overflow:auto;border:1px solid var(--border);border-radius:10px;
+  }
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  thead th{
+    position:sticky;top:0;background:#fff7ee;color:#374151;
+    font-weight:600;text-align:left;padding:10px 12px;
+    border-bottom:1px solid #ffd9b3;font-size:.82rem;
+    text-transform:uppercase;letter-spacing:.04em;
+  }
+  tbody td{padding:8px 12px;border-bottom:1px solid #f3f4f6;font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:#fafafa}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.78rem;font-weight:600}
+  .pill.urg{background:#fde2da;color:var(--warn)}
+  .pill.norm{background:#e2f1d6;color:var(--accent)}
+  .pill.rej{background:#e5e7eb;color:#374151}
+
+  /* ---------- FOOTER ---------- */
+  footer{
+    border-top:1px solid var(--border);background:#fff;
+    padding:32px 24px;color:var(--muted);font-size:.9rem;
+  }
+  footer .inner{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  /* ---------- DETAILS ---------- */
+  details{border:1px solid var(--border);border-radius:10px;padding:0;margin:14px 0;background:#fff}
+  details > summary{
+    cursor:pointer;padding:12px 16px;font-weight:600;color:#111827;
+    list-style:none;display:flex;align-items:center;gap:8px;
+  }
+  details > summary::after{content:"▾";margin-left:auto;transition:transform .2s}
+  details[open] > summary::after{transform:rotate(180deg)}
+  details > div{padding:0 16px 16px;color:#374151;font-size:.95rem}
+
+  /* tiny spinner */
+  .spinner{
+    display:inline-block;width:14px;height:14px;border:2px solid #fff;
+    border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ====================== HERO ====================== -->
+<header class="hero">
+  <div class="hero-inner">
+    <span class="brand">USB Medellín · Modelamiento y Simulación</span>
+    <h1>Simulación estocástica de atención de pacientes en una <span class="accent">clínica</span></h1>
+    <p class="lead">Modelo de cola <b>M/M/c</b> con prioridad no apropiativa y sala de espera finita,
+      implementado como simulación de eventos discretos. Ajusta los parámetros y observa cómo cambia el sistema.</p>
+    <p class="authors">Juan Sebastián Brunal · Juan Sebastián Calvo · Simón Valencia</p>
+    <a href="#simulador" class="btn">Probar el simulador <span aria-hidden="true">→</span></a>
+  </div>
+</header>
+
+<!-- ====================== NAV ====================== -->
+<nav class="topnav">
+  <div class="inner">
+    <a href="#problema">Problema</a>
+    <a href="#modelo">Modelo</a>
+    <a href="#simulador">Simulador</a>
+    <a href="#dataset">Dataset</a>
+    <a href="#sensibilidad">Sensibilidad</a>
+    <a href="#conclusiones">Conclusiones</a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ====================== PROBLEMA ====================== -->
+<section id="problema">
+  <div class="section-head">
+    <span class="eyebrow">El problema</span>
+    <h2>¿Por qué simular una clínica?</h2>
+    <p class="muted">En una clínica los pacientes llegan en momentos impredecibles, las consultas duran tiempos distintos
+      y los médicos son recursos limitados. Cuando estas variables se combinan, se forman filas y crece el tiempo de espera.
+      Simular permite estudiar el sistema y dimensionar recursos sin intervenir el servicio real.</p>
+  </div>
+  <div class="grid-3">
+    <div class="concept">
+      <h3>Llegadas aleatorias</h3>
+      <p class="muted">Los pacientes arriban según un proceso de Poisson. El tiempo entre llegadas es exponencial.</p>
+    </div>
+    <div class="concept green">
+      <h3>Atención prioritaria</h3>
+      <p class="muted">Los pacientes urgentes pasan al frente de la cola, pero no interrumpen una consulta en curso.</p>
+    </div>
+    <div class="concept blue">
+      <h3>Recursos limitados</h3>
+      <p class="muted">Hay <i>c</i> médicos y la sala de espera tiene capacidad <i>K</i>. Si está llena, el paciente se pierde.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== MODELO ====================== -->
+<section id="modelo">
+  <div class="section-head">
+    <span class="eyebrow">El modelo</span>
+    <h2>Cola M/M/c con prioridad y sala finita</h2>
+  </div>
+  <div class="diagram" aria-hidden="true">
+    <div class="node in">Llegadas<br><small>Poisson (λ)</small></div>
+    <span class="arrow">→</span>
+    <div class="node queue">Sala de espera<br><small>K cupos</small></div>
+    <span class="arrow">→</span>
+    <div class="servers-col">
+      <div class="node server">M</div>
+      <div class="node server">M</div>
+      <div class="node server">M</div>
+    </div>
+    <span class="arrow">→</span>
+    <div class="node out">Paciente<br>atendido</div>
+  </div>
+  <div class="card">
+    <p>Empleando la notación de Kendall, el modelo base corresponde a una cola <b>M/M/c</b>:
+      las llegadas siguen un proceso de Poisson, los tiempos de servicio son exponenciales y existen <i>c</i> servidores idénticos.
+      Se añaden dos extensiones realistas: prioridad no apropiativa y sala finita.</p>
+    <div class="formula"><b>Factor de utilización:</b> ρ = λ / (c · μ). El sistema es estable si ρ &lt; 1.</div>
+    <div class="formula"><b>Ley de Little:</b> L = λW &nbsp;·&nbsp; Lq = λWq.</div>
+    <p class="muted">Donde <i>L</i>, <i>Lq</i> son el número medio de pacientes en el sistema y en la cola;
+      <i>W</i>, <i>Wq</i> los tiempos medios correspondientes.</p>
+  </div>
+</section>
+
+<!-- ====================== SIMULADOR ====================== -->
+<section id="simulador">
+  <div class="section-head">
+    <span class="eyebrow">Simulador interactivo</span>
+    <h2>Ejecuta la simulación y observa los resultados</h2>
+    <p class="muted">Cada ejecución simula <b>1 000 pacientes</b> con los parámetros indicados, usando una simulación
+      de eventos discretos en JavaScript directamente en tu navegador.</p>
+  </div>
+
+  <div class="grid-2">
+    <!-- CONTROLES -->
+    <div class="card controls">
+      <h3 style="margin-top:0">Parámetros</h3>
+
+      <label>Número de médicos (c) <span class="val" id="vMed">3</span></label>
+      <div class="row"><input type="range" id="cMed" min="1" max="8" step="1" value="3"></div>
+
+      <label>Llegadas por hora (λ) <span class="val" id="vLam">10</span></label>
+      <div class="row"><input type="range" id="cLam" min="2" max="30" step="1" value="10"></div>
+
+      <label>Duración media de consulta (min) <span class="val" id="vSrv">15</span></label>
+      <div class="row"><input type="range" id="cSrv" min="5" max="40" step="1" value="15"></div>
+
+      <label>Probabilidad de paciente urgente (%) <span class="val" id="vUrg">20</span></label>
+      <div class="row"><input type="range" id="cUrg" min="0" max="60" step="5" value="20"></div>
+
+      <label>Capacidad de la sala (K) <span class="val" id="vK">10</span></label>
+      <div class="row"><input type="range" id="cK" min="3" max="30" step="1" value="10"></div>
+
+      <label>Semilla aleatoria <span class="val" id="vSeed">2024</span></label>
+      <div class="row"><input type="range" id="cSeed" min="1" max="9999" step="1" value="2024"></div>
+
+      <div class="actions">
+        <button class="btn" id="btnRun"><span id="btnLbl">Ejecutar simulación</span></button>
+        <button class="btn secondary" id="btnReset">Restablecer</button>
+      </div>
+      <p class="muted" style="margin-top:14px;font-size:.85rem">
+        ρ teórico: <b id="rhoVal" style="color:var(--primary-dark)">0.833</b>
+        — si supera 1 el sistema se vuelve inestable.
+      </p>
+    </div>
+
+    <!-- KPI -->
+    <div class="card">
+      <h3 style="margin-top:0">Resultados clave</h3>
+      <div class="grid-2" style="gap:12px">
+        <div class="kpi primary"><span class="lbl">Espera en cola</span><span class="num"><span id="kWq">–</span> min</span><span class="sub">promedio Wq</span></div>
+        <div class="kpi"><span class="lbl">Tiempo en sistema</span><span class="num"><span id="kW">–</span> min</span><span class="sub">espera + consulta</span></div>
+        <div class="kpi green"><span class="lbl">Espera urgentes</span><span class="num"><span id="kWqU">–</span> min</span><span class="sub">prioridad 1</span></div>
+        <div class="kpi"><span class="lbl">Espera normales</span><span class="num"><span id="kWqN">–</span> min</span><span class="sub">prioridad 2</span></div>
+        <div class="kpi blue"><span class="lbl">Utilización médicos</span><span class="num"><span id="kUtil">–</span> %</span><span class="sub">tiempo ocupados</span></div>
+        <div class="kpi"><span class="lbl">Probabilidad de rechazo</span><span class="num"><span id="kRech">–</span> %</span><span class="sub">sala llena</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:18px">
+    <div class="card">
+      <h3 style="margin-top:0">Longitud de la cola en el tiempo</h3>
+      <p class="muted" style="font-size:.88rem">Primeras horas de la simulación.</p>
+      <div class="chart-wrap"><canvas id="chartCola"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Distribución de tiempos de espera</h3>
+      <p class="muted" style="font-size:.88rem">Histograma sobre los 1 000 pacientes.</p>
+      <div class="chart-wrap"><canvas id="chartHist"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== DATASET ====================== -->
+<section id="dataset">
+  <div class="section-head">
+    <span class="eyebrow">Dataset sintético</span>
+    <h2>1 000 pacientes simulados</h2>
+    <p class="muted">Cada fila corresponde a un paciente generado por la simulación. Puedes
+      descargar el dataset como CSV para analizarlo con tu herramienta favorita.</p>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+      <div class="muted" style="font-size:.9rem">
+        Mostrando <b id="dsCount">0</b> registros generados con la última simulación.
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn secondary" id="btnCsv">Descargar CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="dsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Llegada (min)</th>
+            <th>Tipo</th>
+            <th>Espera (min)</th>
+            <th>Servicio (min)</th>
+            <th>Salida (min)</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="dsBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== SENSIBILIDAD ====================== -->
+<section id="sensibilidad">
+  <div class="section-head">
+    <span class="eyebrow">Análisis de sensibilidad</span>
+    <h2>¿Cuántos médicos se necesitan?</h2>
+    <p class="muted">Manteniendo la demanda fija (los parámetros actuales de llegada y servicio), se barre el número
+      de médicos entre 1 y 7 para comparar espera, utilización y rechazo.</p>
+  </div>
+  <div class="card">
+    <div class="chart-wrap lg"><canvas id="chartSens"></canvas></div>
+    <p class="muted" style="font-size:.88rem;margin-top:12px">
+      El punto que minimiza la espera <i>sin</i> sobre-dimensionar recursos suele estar donde la curva de espera
+      cae bruscamente y la utilización está entre 60 % y 80 %.
+    </p>
+  </div>
+</section>
+
+<!-- ====================== CONCLUSIONES ====================== -->
+<section id="conclusiones">
+  <div class="section-head">
+    <span class="eyebrow">Conclusiones</span>
+    <h2>Lo que aprendimos del modelo</h2>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="margin-top:0">El simulador es fiable</h3>
+      <p class="muted">Comparado con la solución analítica exacta de una cola M/M/c (fórmula de Erlang C), el error es
+        inferior al 2,3 % en todas las métricas. Esto valida tanto el modelo como su implementación.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">La prioridad funciona</h3>
+      <p class="muted">El mecanismo de prioridad reduce el tiempo de espera de los pacientes urgentes a una fracción
+        del de los normales, <b>sin gastar recursos adicionales</b>.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Cuello de botella claro</h3>
+      <p class="muted">Por debajo de cierto número de médicos el sistema colapsa (utilización ≈ 100 %, rechazos altos).
+        Cruzar ese umbral aporta una gran mejora; añadir más médicos a partir de ahí da rendimientos decrecientes.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Decisiones basadas en evidencia</h3>
+      <p class="muted">La simulación estocástica permite evaluar escenarios y dimensionar recursos sin tocar el sistema
+        real, contribuyendo a reducir esperas y mejorar la calidad del servicio.</p>
+    </div>
+  </div>
+
+  <details style="margin-top:18px">
+    <summary>Detalles técnicos del simulador (clic para expandir)</summary>
+    <div>
+      <p>El simulador implementa un motor de eventos discretos con:</p>
+      <ul>
+        <li><b>Cola de prioridad</b> de eventos (min-heap binario) ordenada por tiempo.</li>
+        <li><b>Generador pseudoaleatorio</b> sembrado (Mulberry32) para reproducibilidad.</li>
+        <li>Tiempos exponenciales por <b>transformada inversa</b>: <i>t = −ln(1 − U) / λ</i>.</li>
+        <li><b>Integración en el tiempo</b> de las variables de estado para estimar <i>Lq</i>, <i>L</i> y la utilización.</li>
+        <li>Sala de espera <b>finita</b> con descarte de pacientes cuando está llena (rechazo).</li>
+        <li>Prioridad <b>no apropiativa</b>: los urgentes pasan al frente, pero no interrumpen consultas en curso.</li>
+      </ul>
+      <p class="muted">El código de la versión original en Python (con validación contra la fórmula de Erlang C, 30 réplicas
+        e intervalos de confianza del 95 %) está disponible en el artículo del proyecto.</p>
+    </div>
+  </details>
+</section>
+
+</main>
+
+<footer>
+  <div class="inner">
+    <div>© 2026 — Brunal · Calvo · Valencia · Universidad de San Buenaventura, Medellín.</div>
+    <div>Curso: Modelamiento y Simulación.</div>
+  </div>
+</footer>
+
+<!-- ============================================================== -->
+<!--                         SIMULADOR EN JS                         -->
+<!-- ============================================================== -->
+<script>
+"use strict";
+
+// -------------------- PRNG sembrado --------------------
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function(){
+    t = (t + 0x6D2B79F5) | 0;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// -------------------- Min-heap binario --------------------
+class Heap{
+  constructor(cmp){ this.a = []; this.cmp = cmp; }
+  get size(){ return this.a.length; }
+  push(x){ this.a.push(x); this._up(this.a.length - 1); }
+  pop(){
+    const top = this.a[0];
+    const last = this.a.pop();
+    if(this.a.length){ this.a[0] = last; this._down(0); }
+    return top;
+  }
+  _up(i){
+    const a = this.a, cmp = this.cmp;
+    while(i > 0){
+      const p = (i - 1) >> 1;
+      if(cmp(a[i], a[p]) < 0){ [a[i], a[p]] = [a[p], a[i]]; i = p; }
+      else break;
+    }
+  }
+  _down(i){
+    const a = this.a, n = a.length, cmp = this.cmp;
+    while(true){
+      const l = 2*i + 1, r = 2*i + 2;
+      let m = i;
+      if(l < n && cmp(a[l], a[m]) < 0) m = l;
+      if(r < n && cmp(a[r], a[m]) < 0) m = r;
+      if(m === i) break;
+      [a[i], a[m]] = [a[m], a[i]];
+      i = m;
+    }
+  }
+}
+
+// -------------------- Núcleo de simulación --------------------
+function simulate(opts){
+  const {
+    c, lambdaPerHour, meanService, pUrg, K, nPatients, seed,
+    salaFinita = true, usarPrioridad = true,
+  } = opts;
+  const meanInter = 60 / lambdaPerHour;            // min entre llegadas
+  const rng = mulberry32(seed);
+  const expo = mean => -Math.log(1 - rng()) * mean;
+
+  // eventos: [tiempo, seq, tipo]   tipo: 0 = LLEGADA, 1 = SALIDA
+  const events = new Heap((a,b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
+  // cola de espera: [prio, llegada, seq]
+  const queue = new Heap((a,b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0]);
+
+  let clock = 0, seq = 0, busy = 0, served = 0, rejected = 0, arrivals = 0;
+  let areaQueue = 0, areaSystem = 0, areaBusy = 0, lastEvt = 0, qMax = 0;
+  const waits = [], waitsU = [], waitsN = [];
+  const records = [];      // dataset salida
+  const trace = [];        // {t, q} para chart
+  let nextId = 1;
+
+  function schedule(t, type, data){ events.push([t, seq++, type, data]); }
+  function updateAreas(){
+    const dt = clock - lastEvt;
+    if(dt > 0){
+      const nq = queue.size;
+      areaQueue  += nq * dt;
+      areaSystem += (nq + busy) * dt;
+      areaBusy   += busy * dt;
+    }
+    lastEvt = clock;
+  }
+  function startService(prio, tArr, id){
+    busy += 1;
+    const wait = clock - tArr;
+    const dur = expo(meanService);
+    waits.push(wait);
+    if(prio === 0) waitsU.push(wait); else waitsN.push(wait);
+    schedule(clock + dur, 1, { id, prio, tArr, wait, dur });
+  }
+
+  // primer evento
+  schedule(expo(meanInter), 0, null);
+
+  while(events.size && arrivals < nPatients){
+    const [t, , type, data] = events.pop();
+    clock = t;
+    updateAreas();
+    if(type === 0){               // LLEGADA
+      arrivals += 1;
+      schedule(clock + expo(meanInter), 0, null);
+      const prio = (usarPrioridad && rng() < pUrg) ? 0 : 1;
+      const id = nextId++;
+      if(busy < c){
+        startService(prio, clock, id);
+      } else if(!salaFinita || queue.size < K){
+        queue.push([prio, clock, seq++, id]);
+      } else {
+        rejected += 1;
+        records.push({ id, arrival: clock, prio, wait: null, service: null, end: null, status: "rechazado" });
+      }
+    } else {                      // SALIDA
+      busy -= 1;
+      served += 1;
+      const d = data;
+      records.push({ id: d.id, arrival: d.tArr, prio: d.prio, wait: d.wait, service: d.dur, end: clock, status: "atendido" });
+      if(queue.size > 0){
+        const [prio, tArr, , id] = queue.pop();
+        startService(prio, tArr, id);
+      }
+    }
+    qMax = Math.max(qMax, queue.size);
+    if(trace.length === 0 || clock - trace[trace.length - 1].t > 0.5)
+      trace.push({ t: clock, q: queue.size });
+  }
+
+  // dejar terminar las salidas pendientes para completar records pero sin contar más llegadas
+  while(events.size && busy + queue.size > 0){
+    const [t, , type, data] = events.pop();
+    if(type === 0) continue;        // ignoramos llegadas posteriores
+    clock = t;
+    updateAreas();
+    busy -= 1;
+    served += 1;
+    const d = data;
+    records.push({ id: d.id, arrival: d.tArr, prio: d.prio, wait: d.wait, service: d.dur, end: clock, status: "atendido" });
+    if(queue.size > 0){
+      const [prio, tArr, , id] = queue.pop();
+      startService(prio, tArr, id);
+    }
+  }
+
+  // ordenar registros por id para que el dataset esté ordenado por llegada
+  records.sort((a,b) => a.id - b.id);
+
+  const T = clock;
+  const prom = arr => arr.length ? arr.reduce((s,x) => s + x, 0) / arr.length : 0;
+  return {
+    Wq:    prom(waits),
+    WqU:   prom(waitsU),
+    WqN:   prom(waitsN),
+    W:     records.filter(r => r.status === "atendido")
+                  .reduce((s,r) => s + (r.wait + r.service), 0) /
+           Math.max(1, served),
+    Lq:    areaQueue / T,
+    L:     areaSystem / T,
+    util:  areaBusy / (T * c),
+    pRej:  arrivals ? rejected / arrivals : 0,
+    qMax,
+    served, rejected, arrivals,
+    horizon: T,
+    trace, records,
+  };
+}
+
+// -------------------- Charts (Chart.js) --------------------
+const chartOptsBase = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: true, labels: { font: { family:'Inter' } } } },
+  scales:{
+    x:{ ticks:{ font:{ family:'Inter' } }, grid:{ color:'#f3f4f6' } },
+    y:{ ticks:{ font:{ family:'Inter' } }, grid:{ color:'#f3f4f6' } },
+  }
+};
+const C_PRIM = '#e66600', C_ACC = '#1b6b1b', C_BLU = '#0a4a66';
+
+let chartCola = null, chartHist = null, chartSens = null;
+
+function renderColaChart(trace){
+  const cutoff = Math.min(800, trace.length ? trace[trace.length - 1].t : 0);
+  const data = trace.filter(p => p.t <= cutoff);
+  const ctx = document.getElementById('chartCola');
+  const cfg = {
+    type:'line',
+    data:{
+      labels: data.map(p => p.t.toFixed(0)),
+      datasets:[{
+        label:'Pacientes en cola',
+        data: data.map(p => p.q),
+        borderColor: C_ACC, backgroundColor: 'rgba(27,107,27,.12)',
+        borderWidth:1.5, pointRadius:0, stepped:true, fill:true,
+      }]
+    },
+    options:{ ...chartOptsBase,
+      scales:{
+        x:{...chartOptsBase.scales.x, title:{display:true, text:'Tiempo (min)'}, ticks:{ maxTicksLimit:10, font:{family:'Inter'} } },
+        y:{...chartOptsBase.scales.y, title:{display:true, text:'Pacientes'}, beginAtZero:true, ticks:{ stepSize:1, font:{family:'Inter'} } }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  };
+  if(chartCola) chartCola.destroy();
+  chartCola = new Chart(ctx, cfg);
+}
+
+function renderHistChart(records){
+  const waits = records.filter(r => r.status === 'atendido').map(r => r.wait);
+  if(!waits.length) return;
+  const max = Math.max(...waits);
+  const nbins = 30;
+  const binW = Math.max(1, Math.ceil(max / nbins));
+  const bins = new Array(nbins).fill(0);
+  const labels = [];
+  for(let i=0;i<nbins;i++) labels.push(((i+0.5)*binW).toFixed(0));
+  for(const w of waits){
+    const idx = Math.min(nbins - 1, Math.floor(w / binW));
+    bins[idx] += 1;
+  }
+  const mean = waits.reduce((s,x)=>s+x,0)/waits.length;
+  const ctx = document.getElementById('chartHist');
+  const cfg = {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Pacientes',
+        data: bins,
+        backgroundColor: 'rgba(230,102,0,.7)',
+        borderColor: C_PRIM, borderWidth:0, borderRadius:2,
+      }]
+    },
+    options:{ ...chartOptsBase,
+      scales:{
+        x:{...chartOptsBase.scales.x, title:{display:true,text:'Espera en cola (min)'}, ticks:{maxTicksLimit:12, font:{family:'Inter'}}},
+        y:{...chartOptsBase.scales.y, title:{display:true,text:'Frecuencia'}, beginAtZero:true}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ title: items => `≈ ${items[0].label} min` } },
+        annotation: {}
+      }
+    }
+  };
+  if(chartHist) chartHist.destroy();
+  chartHist = new Chart(ctx, cfg);
+
+  // anotación de media (línea simple sobre el dataset)
+  const meanLabel = document.createElement('div');
+  meanLabel.textContent = `Media: ${mean.toFixed(1)} min`;
+  // (no usamos plugin extra; la cifra ya aparece en KPI)
+}
+
+function renderSensChart(curve){
+  const ctx = document.getElementById('chartSens');
+  const cfg = {
+    type:'line',
+    data:{
+      labels: curve.map(p => p.c.toString()),
+      datasets:[
+        { label:'Espera Wq (min)', yAxisID:'y',
+          data: curve.map(p => +p.Wq.toFixed(2)),
+          borderColor: C_PRIM, backgroundColor: C_PRIM,
+          pointRadius:5, tension:.25 },
+        { label:'Utilización (%)', yAxisID:'y2',
+          data: curve.map(p => +(p.util*100).toFixed(1)),
+          borderColor: C_ACC, backgroundColor: C_ACC,
+          borderDash:[6,4], pointRadius:4, tension:.25 },
+        { label:'Rechazo (%)', yAxisID:'y2',
+          data: curve.map(p => +(p.pRej*100).toFixed(1)),
+          borderColor: C_BLU, backgroundColor: C_BLU,
+          borderDash:[2,3], pointRadius:4, tension:.25 },
+      ]
+    },
+    options:{ ...chartOptsBase,
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        x:{ title:{display:true,text:'Número de médicos (c)'}, grid:{color:'#f3f4f6'} },
+        y:{ position:'left', title:{display:true,text:'Espera (min)', color:C_PRIM},
+            ticks:{ color:C_PRIM, font:{family:'Inter'} }, grid:{color:'#f3f4f6'} },
+        y2:{ position:'right', title:{display:true,text:'Utilización / Rechazo (%)'},
+            ticks:{ font:{family:'Inter'} }, grid:{drawOnChartArea:false}, beginAtZero:true, max:100 }
+      }
+    }
+  };
+  if(chartSens) chartSens.destroy();
+  chartSens = new Chart(ctx, cfg);
+}
+
+// -------------------- Dataset (tabla + CSV) --------------------
+function renderDataset(records){
+  const tbody = document.getElementById('dsBody');
+  const fmt = x => x === null || x === undefined ? '—' : (typeof x === 'number' ? x.toFixed(2) : x);
+  const html = records.map(r => {
+    const pill = r.status === 'rechazado'
+      ? '<span class="pill rej">rechazado</span>'
+      : (r.prio === 0 ? '<span class="pill urg">urgente</span>' : '<span class="pill norm">normal</span>');
+    const stat = r.status === 'rechazado' ? 'Sala llena' : 'Atendido';
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${fmt(r.arrival)}</td>
+      <td>${pill}</td>
+      <td>${fmt(r.wait)}</td>
+      <td>${fmt(r.service)}</td>
+      <td>${fmt(r.end)}</td>
+      <td>${stat}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML = html;
+  document.getElementById('dsCount').textContent = records.length.toString();
+}
+
+function downloadCsv(records){
+  const lines = ['id,llegada_min,prioridad,espera_min,servicio_min,salida_min,estado'];
+  for(const r of records){
+    const prio = r.status === 'rechazado' ? 'rechazado' : (r.prio === 0 ? 'urgente' : 'normal');
+    lines.push([
+      r.id,
+      r.arrival?.toFixed(2) ?? '',
+      prio,
+      r.wait?.toFixed(2) ?? '',
+      r.service?.toFixed(2) ?? '',
+      r.end?.toFixed(2) ?? '',
+      r.status,
+    ].join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'pacientes_simulados.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// -------------------- UI: binding de controles --------------------
+const defaults = { c:3, lam:10, srv:15, urg:20, K:10, seed:2024 };
+function readControls(){
+  return {
+    c:    +document.getElementById('cMed').value,
+    lam:  +document.getElementById('cLam').value,
+    srv:  +document.getElementById('cSrv').value,
+    urg:  +document.getElementById('cUrg').value,
+    K:    +document.getElementById('cK').value,
+    seed: +document.getElementById('cSeed').value,
+  };
+}
+function reflectControls(){
+  const v = readControls();
+  document.getElementById('vMed').textContent  = v.c;
+  document.getElementById('vLam').textContent  = v.lam;
+  document.getElementById('vSrv').textContent  = v.srv;
+  document.getElementById('vUrg').textContent  = v.urg + ' %';
+  document.getElementById('vK').textContent    = v.K;
+  document.getElementById('vSeed').textContent = v.seed;
+  // rho teórico = lambda/(c*mu) = (lam/60) / (c * 1/srv) = lam*srv/(60*c)
+  const rho = (v.lam * v.srv) / (60 * v.c);
+  const rhoEl = document.getElementById('rhoVal');
+  rhoEl.textContent = rho.toFixed(3);
+  rhoEl.style.color = rho >= 1 ? 'var(--warn)' : 'var(--primary-dark)';
+}
+['cMed','cLam','cSrv','cUrg','cK','cSeed'].forEach(id =>
+  document.getElementById(id).addEventListener('input', reflectControls));
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  document.getElementById('cMed').value  = defaults.c;
+  document.getElementById('cLam').value  = defaults.lam;
+  document.getElementById('cSrv').value  = defaults.srv;
+  document.getElementById('cUrg').value  = defaults.urg;
+  document.getElementById('cK').value    = defaults.K;
+  document.getElementById('cSeed').value = defaults.seed;
+  reflectControls();
+  runSim();
+});
+
+// -------------------- Ejecutar simulación --------------------
+function buildOpts(v, nPatients){
+  return {
+    c: v.c, lambdaPerHour: v.lam, meanService: v.srv,
+    pUrg: v.urg / 100, K: v.K, nPatients, seed: v.seed,
+  };
+}
+
+let lastRecords = [];
+
+function runSim(){
+  const btn = document.getElementById('btnRun');
+  const lbl = document.getElementById('btnLbl');
+  btn.disabled = true;
+  lbl.innerHTML = '<span class="spinner"></span> Simulando…';
+
+  // pequeño delay para que se vea el spinner
+  setTimeout(() => {
+    const v = readControls();
+    const res = simulate(buildOpts(v, 1000));
+
+    // KPIs
+    document.getElementById('kWq').textContent   = res.Wq.toFixed(1);
+    document.getElementById('kW').textContent    = res.W.toFixed(1);
+    document.getElementById('kWqU').textContent  = res.WqU.toFixed(1);
+    document.getElementById('kWqN').textContent  = res.WqN.toFixed(1);
+    document.getElementById('kUtil').textContent = (res.util * 100).toFixed(1);
+    document.getElementById('kRech').textContent = (res.pRej * 100).toFixed(2);
+
+    // Charts y dataset
+    renderColaChart(res.trace);
+    renderHistChart(res.records);
+    lastRecords = res.records;
+    renderDataset(res.records);
+
+    // Sensibilidad: barrer c de 1 a 7 con 600 pacientes para velocidad
+    const sweep = [];
+    for(let c = 1; c <= 7; c++){
+      const r = simulate(buildOpts({...v, c}, 600));
+      sweep.push({ c, Wq: r.Wq, util: r.util, pRej: r.pRej });
+    }
+    renderSensChart(sweep);
+
+    btn.disabled = false;
+    lbl.textContent = 'Ejecutar simulación';
+  }, 30);
+}
+
+document.getElementById('btnRun').addEventListener('click', runSim);
+document.getElementById('btnCsv').addEventListener('click', () => {
+  if(lastRecords.length) downloadCsv(lastRecords);
+});
+
+// Primera ejecución al cargar
+window.addEventListener('DOMContentLoaded', () => {
+  reflectControls();
+  runSim();
+});
+</script>
+
+</body>
+</html>
